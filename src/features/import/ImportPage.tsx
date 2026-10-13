@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { deckRepo } from '../../data/repos/deckRepo.ts';
 import { dictRepo, DictSearchResult } from '../../data/repos/dictRepo.ts';
+import { syncService } from '../../data/sync/syncService.ts';
 import { DeckRecord } from '../../data/db/schema.ts';
 import { parseTextContent } from '../../core/importer/textParser.ts';
 import { parseCsvContent } from '../../core/importer/csvParser.ts';
+import { useAuth } from '../../core/auth/AuthContext.tsx';
 import { TopAppBar } from '../../ui/components/TopAppBar.tsx';
 import { MdCard } from '../../ui/components/MdCard.tsx';
 import { MdButton } from '../../ui/components/MdButton.tsx';
@@ -12,6 +14,7 @@ import { MdSelect } from '../../ui/components/MdSelect.tsx';
 import { useToast } from '../../ui/components/Toast.tsx';
 
 export const ImportPage: React.FC = () => {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const preselectedDeckId = searchParams.get('deckId');
 
@@ -35,7 +38,7 @@ export const ImportPage: React.FC = () => {
       }
     };
     load();
-  }, [selectedDeckId]);
+  }, [user?.id, selectedDeckId]);
 
   // 解析并匹配词库
   const handleParseAndMatch = async (content: string, isCsv = false) => {
@@ -179,6 +182,9 @@ export const ImportPage: React.FC = () => {
       selectedDeckId,
       wordsToImport
     );
+
+    // 触发云端同步
+    syncService.triggerSyncDebounced(200);
 
     setIsProcessing(false);
     showToast(`成功导入 ${addedCount} 个单词！(跳过已有 ${duplicateCount} 词)`);

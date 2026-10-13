@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTheme, ThemeMode } from '../../hooks/useTheme.ts';
+import { useAuth } from '../../core/auth/useAuth.ts';
 import { dictDb } from '../../data/db/dictDb.ts';
 import { ensureDictionaryLoaded } from '../../data/dictLoader.ts';
 import { exportUserBackup, importUserBackup } from '../../data/backup/backupManager.ts';
@@ -11,6 +13,8 @@ import { useToast } from '../../ui/components/Toast.tsx';
 import { DictUploadModal } from './DictUploadModal.tsx';
 
 export const SettingsPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const { mode, setMode } = useTheme();
   const { showToast } = useToast();
 
@@ -95,6 +99,79 @@ export const SettingsPage: React.FC = () => {
       <TopAppBar title="系统设置" subtitle="主题外观、词库状态与数据备份" />
 
       <div style={{ padding: '24px', maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {/* 账户中心与云端同步快捷卡片 */}
+        <MdCard variant="outlined">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: 'var(--md-sys-shape-corner-full)',
+                  backgroundColor: 'var(--md-sys-color-primary-container)',
+                  color: 'var(--md-sys-color-on-primary-container)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <span className="material-symbols-rounded" style={{ fontSize: '28px' }}>
+                  {isAuthenticated && user?.role === 'admin' ? 'admin_panel_settings' : 'account_circle'}
+                </span>
+              </div>
+              <div>
+                {isAuthenticated && user ? (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>{user.username}</h3>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          borderRadius: 'var(--md-sys-shape-corner-full)',
+                          backgroundColor:
+                            user.role === 'admin'
+                              ? 'var(--md-sys-color-tertiary-container)'
+                              : 'var(--md-sys-color-secondary-container)',
+                          color:
+                            user.role === 'admin'
+                              ? 'var(--md-sys-color-on-tertiary-container)'
+                              : 'var(--md-sys-color-on-secondary-container)',
+                        }}
+                      >
+                        {user.role === 'admin' ? '管理员' : '已登录'}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '13px', color: 'var(--md-sys-color-secondary)', margin: '4px 0 0 0' }}>
+                      {user.email} · 云端同步功能已就绪
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>访客模式 (离线)</h3>
+                    <p style={{ fontSize: '13px', color: 'var(--md-sys-color-secondary)', margin: '4px 0 0 0' }}>
+                      当前学习数据仅存储在本机浏览器中。登录或注册账户即可开启多设备云端备份与数据同步。
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div>
+              {isAuthenticated ? (
+                <MdButton variant="tonal" size="sm" icon="badge" onClick={() => navigate('/account')}>
+                  进入账户中心
+                </MdButton>
+              ) : (
+                <MdButton variant="filled" size="sm" icon="login" onClick={() => navigate('/login')}>
+                  登录 / 注册
+                </MdButton>
+              )}
+            </div>
+          </div>
+        </MdCard>
+
         {/* 主题设置 */}
         <MdCard variant="outlined">
           <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px' }}>外观与主题</h3>

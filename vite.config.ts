@@ -1,9 +1,22 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { apiMiddleware } from './server/app.ts';
+
+function apiServerPlugin(): Plugin {
+  return {
+    name: 'api-server-plugin',
+    configureServer(server) {
+      server.middlewares.use(apiMiddleware);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(apiMiddleware);
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), apiServerPlugin()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

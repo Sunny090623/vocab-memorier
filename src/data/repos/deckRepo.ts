@@ -4,7 +4,8 @@ import { CardState, CardProgress } from '../../core/scheduler/types.ts';
 
 export const deckRepo = {
   async getAll(): Promise<DeckRecord[]> {
-    return userDb.decks.orderBy('createdAt').reverse().toArray();
+    const list = await userDb.decks.orderBy('createdAt').reverse().toArray();
+    return list.filter((d) => d.isDeleted !== 1);
   },
 
   async getById(id: string): Promise<DeckRecord | undefined> {
@@ -42,9 +43,10 @@ export const deckRepo = {
   },
 
   async delete(id: string): Promise<void> {
+    const now = Date.now();
     await userDb.transaction('rw', [userDb.decks, userDb.deckMembers, userDb.cards, userDb.logs], async () => {
-      await userDb.decks.delete(id);
-      await userDb.deckMembers.where('deckId').equals(id).delete();
+      await userDb.decks.update(id, { isDeleted: 1, updatedAt: now });
+      await userDb.deckMembers.where('deckId').equals(id).modify({ isDeleted: 1 });
       await userDb.cards.where('deckId').equals(id).delete();
       await userDb.logs.where('deckId').equals(id).delete();
     });

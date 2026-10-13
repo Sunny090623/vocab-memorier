@@ -9,6 +9,7 @@ export interface DeckRecord {
   masteredCount: number;
   createdAt: number;
   updatedAt: number;
+  isDeleted?: number;
 }
 
 export interface DeckMemberRecord {
@@ -17,6 +18,7 @@ export interface DeckMemberRecord {
   word: string;
   sortOrder: number;
   addedAt: number;
+  isDeleted?: number;
 }
 
 export interface DictEntryRecord {

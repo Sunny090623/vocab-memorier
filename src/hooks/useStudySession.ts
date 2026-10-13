@@ -7,6 +7,7 @@ import { cardRepo } from '../data/repos/cardRepo.ts';
 import { logRepo } from '../data/repos/logRepo.ts';
 import { deckRepo } from '../data/repos/deckRepo.ts';
 import { dictRepo, DictSearchResult } from '../data/repos/dictRepo.ts';
+import { syncService } from '../data/sync/syncService.ts';
 
 export interface StudySessionState {
   deckId: string;
@@ -307,6 +308,9 @@ export function useStudySession(deckId: string) {
         logRepo.add(logEntry),
         deckRepo.updateCounts(deckId, newAllCards.length, masteredCount),
       ]);
+
+      // 触发后台轻量防抖同步
+      syncService.triggerSyncDebounced();
 
       // 一次性同步更新所有 React 状态，卡片直接切换到下一张（默认未揭示），无任何中间折叠/闪屏！
       setAllCards(newAllCards);

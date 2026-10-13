@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { deckRepo } from '../../data/repos/deckRepo.ts';
 import { cardRepo } from '../../data/repos/cardRepo.ts';
+import { syncService } from '../../data/sync/syncService.ts';
+import { useAuth } from '../../core/auth/AuthContext.tsx';
 import { DeckRecord, StudyMode } from '../../data/db/schema.ts';
 import { TopAppBar } from '../../ui/components/TopAppBar.tsx';
 import { MdCard } from '../../ui/components/MdCard.tsx';
 import { MdButton } from '../../ui/components/MdButton.tsx';
 
 export const DeckListPage: React.FC = () => {
+  const { user } = useAuth();
   const [decks, setDecks] = useState<DeckRecord[]>([]);
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [newDeckName, setNewDeckName] = useState<string>('');
@@ -21,6 +24,15 @@ export const DeckListPage: React.FC = () => {
 
   useEffect(() => {
     loadDecks();
+  }, [user?.id]);
+
+  useEffect(() => {
+    const unsubscribe = syncService.subscribe((status) => {
+      if (status === 'synced' || status === 'idle') {
+        loadDecks();
+      }
+    });
+    return unsubscribe;
   }, []);
 
   const handleStudyDeck = async (deck: DeckRecord) => {

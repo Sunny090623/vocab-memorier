@@ -1,14 +1,22 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTheme } from '../../hooks/useTheme.ts';
+import { useAuth } from '../../core/auth/useAuth.ts';
 
 export const NavigationShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { actualTheme, toggleTheme } = useTheme();
+  const { isAdmin } = useAuth();
+
   const navItems = [
     { to: '/decks', label: '单词本', icon: 'style' },
     { to: '/import', label: '导入', icon: 'upload_file' },
     { to: '/settings', label: '设置', icon: 'settings' },
+    { to: '/account', label: '账户', icon: 'account_circle' },
   ];
+
+  if (isAdmin) {
+    navItems.push({ to: '/admin', label: '管理后台', icon: 'admin_panel_settings' });
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
@@ -22,11 +30,11 @@ export const NavigationShell: React.FC<{ children: React.ReactNode }> = ({ child
           flexDirection: 'column',
           alignItems: 'center',
           padding: '24px 0',
-          gap: '16px',
+          gap: '12px',
           flexShrink: 0,
         }}
       >
-        <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <span className="material-symbols-rounded" style={{ fontSize: '32px', color: 'var(--md-sys-color-primary)' }}>
             school
           </span>
@@ -41,11 +49,13 @@ export const NavigationShell: React.FC<{ children: React.ReactNode }> = ({ child
               alignItems: 'center',
               textDecoration: 'none',
               gap: '4px',
-              padding: '8px 12px',
+              padding: '8px 10px',
               borderRadius: 'var(--md-sys-shape-corner-large)',
               backgroundColor: isActive ? 'var(--md-sys-color-primary-container)' : 'transparent',
               color: isActive ? 'var(--md-sys-color-on-primary-container)' : 'var(--md-sys-color-secondary)',
               transition: 'all 0.15s ease',
+              width: '68px',
+              textAlign: 'center',
             })}
           >
             <span className="material-symbols-rounded">{item.icon}</span>
@@ -112,7 +122,7 @@ export const NavigationShell: React.FC<{ children: React.ReactNode }> = ({ child
               alignItems: 'center',
               textDecoration: 'none',
               gap: '2px',
-              padding: '6px 16px',
+              padding: '6px 12px',
               borderRadius: 'var(--md-sys-shape-corner-full)',
               backgroundColor: isActive ? 'var(--md-sys-color-primary-container)' : 'transparent',
               color: isActive ? 'var(--md-sys-color-on-primary-container)' : 'var(--md-sys-color-secondary)',
