@@ -1,0 +1,21 @@
+# Build & dependencies
+node_modules
+dist
+.vscode
+.idea
+*.log
+
+# Large dictionary zips & reference archives
+*.zip
+
+# Prompt / scratch files
+prompt.txt
+implementation_plan.md
+
+# Python
+__pycache__
+*.pyc
+
+# Test output artifacts
+test-results/
+playwright-report/
