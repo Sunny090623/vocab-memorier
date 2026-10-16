@@ -87,6 +87,7 @@ flowchart TD
 
 ### 1. 安装依赖
 ```bash
+cd /opt
 git clone https://github.com/Sunny090623/vocab-memorier.git
 cd vocab-memorier
 npm install
@@ -137,6 +138,8 @@ npm run serve
 ```
 启动后访问 `http://localhost:3001`（或通过 `PORT=8080 npm run serve` 指定端口）即可使用完整功能。
 
+---
+
 ### 4. 运行自动化测试
 ```bash
 # 运行全部 Vitest 单元测试与算法集成测试
@@ -146,6 +149,7 @@ npm test
 node --experimental-strip-types tests/e2e/test_account_admin_and_sync.mjs
 ```
 
+---
 
 ### 5. 远程服务器生产部署教程（Nginx + Node.js 后端）
 
@@ -218,7 +222,7 @@ sudo cp -r /opt/vocab-memorier/dist/* /var/www/vocab-memorier/
 ```nginx
 server {
     listen 80;
-    server_name vocab.sunny081209.cc;
+    server_name _;
 
     root /var/www/vocab-memorier;
     index index.html;
@@ -252,7 +256,7 @@ server {
 ```nginx
 server {
     listen 80;
-    server_name vocab.sunny081209.cc;
+    server_name _;
 
     client_max_body_size 20m;
 
