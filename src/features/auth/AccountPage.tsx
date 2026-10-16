@@ -15,6 +15,7 @@ export const AccountPage: React.FC = () => {
   const { showToast } = useToast();
 
   const [username, setUsername] = useState(user?.username || '');
+  const [email, setEmail] = useState(user?.email || '');
   const [isEditingUsername, setIsEditingUsername] = useState(false);
   const [updatingUsername, setUpdatingUsername] = useState(false);
 
@@ -37,6 +38,7 @@ export const AccountPage: React.FC = () => {
   useEffect(() => {
     if (user) {
       setUsername(user.username);
+      setEmail(user.email);
     }
   }, [user]);
 
@@ -81,13 +83,13 @@ export const AccountPage: React.FC = () => {
 
   const handleUpdateUsername = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim()) return;
+    if (!username.trim() || !email.trim()) return;
     setUpdatingUsername(true);
     try {
-      await authApi.updateProfile(username.trim());
+      await authApi.updateProfile(username.trim(), email.trim());
       await refreshMe();
       setIsEditingUsername(false);
-      showToast('用户名修改成功！');
+      showToast('个人资料修改成功！');
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : '更新失败');
     } finally {
@@ -234,14 +236,29 @@ export const AccountPage: React.FC = () => {
           </div>
 
           {isEditingUsername && (
-            <form onSubmit={handleUpdateUsername} style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
+            <form onSubmit={handleUpdateUsername} style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="新昵称"
                 style={{
-                  flex: 1,
+                  flex: '1 1 160px',
+                  padding: '8px 12px',
+                  borderRadius: 'var(--md-sys-shape-corner-medium)',
+                  border: '1px solid var(--md-sys-color-outline-variant)',
+                  backgroundColor: 'var(--md-sys-color-surface)',
+                  color: 'var(--md-sys-color-on-surface)',
+                  fontSize: '14px',
+                }}
+              />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="新邮箱地址"
+                style={{
+                  flex: '1 1 200px',
                   padding: '8px 12px',
                   borderRadius: 'var(--md-sys-shape-corner-medium)',
                   border: '1px solid var(--md-sys-color-outline-variant)',

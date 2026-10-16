@@ -31,6 +31,7 @@ pnpm-debug.log*
 # Prompt / scratch files
 prompt.txt
 implementation_plan.md
+图*.png
 
 # Python
 __pycache__/

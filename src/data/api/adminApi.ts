@@ -35,8 +35,17 @@ export const adminApi = {
     });
   },
 
-  async listUsers(q?: string): Promise<{ users: AdminUserItem[] }> {
-    const url = q ? `/api/admin/users?q=${encodeURIComponent(q)}` : '/api/admin/users';
+  async listUsers(
+    q?: string,
+    page?: number,
+    pageSize?: number
+  ): Promise<{ users: AdminUserItem[]; total?: number; page?: number; pageSize?: number; totalPages?: number }> {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (page !== undefined) params.set('page', String(page));
+    if (pageSize !== undefined) params.set('pageSize', String(pageSize));
+    const qs = params.toString();
+    const url = qs ? `/api/admin/users?${qs}` : '/api/admin/users';
     return request(url, { method: 'GET' });
   },
 

@@ -18,6 +18,8 @@ export const AdminDashboardPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'users' | 'audit'>('users');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 10;
 
   // 创建用户弹窗
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -316,7 +318,7 @@ export const AdminDashboardPage: React.FC = () => {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {users.map((u) => {
+                {users.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((u) => {
                   const isCurrent = u.id === user?.id;
                   return (
                     <div key={u.id} data-user-email={u.email}>
@@ -422,6 +424,31 @@ export const AdminDashboardPage: React.FC = () => {
                   </div>
                 );
                 })}
+                {users.length > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--md-sys-color-secondary)' }}>
+                      第 {currentPage} / {Math.max(1, Math.ceil(users.length / pageSize))} 页 · 共 {users.length} 个账户
+                    </span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <MdButton
+                        variant="outlined"
+                        size="sm"
+                        disabled={currentPage <= 1}
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      >
+                        上一页
+                      </MdButton>
+                      <MdButton
+                        variant="outlined"
+                        size="sm"
+                        disabled={currentPage >= Math.ceil(users.length / pageSize)}
+                        onClick={() => setCurrentPage((p) => Math.min(Math.max(1, Math.ceil(users.length / pageSize)), p + 1))}
+                      >
+                        下一页
+                      </MdButton>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

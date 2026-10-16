@@ -18,10 +18,10 @@
 - **自定义 MDX 词典扩展**：支持在设置中上传包含 `.mdx` 文件的 `.zip` 压缩包。系统在前端高速解压并解析 MDX 文件，增量合并到本地词库。
 
 ### 3. 多账户体系与管理员后台 (RBAC)
-- **极简本地部署友好**：无需依赖外部 SMTP 邮件服务器或第三方验证平台，支持用户名/邮箱直接注册登录，采用 PBKDF2-HMAC-SHA256 安全加盐哈希存储凭据。
+- **极简本地部署友好**：无需依赖外部 SMTP 邮件服务器或第三方验证平台，支持用户名/邮箱直接注册登录，采用 `scrypt` 16 字节随机加盐哈希与 `timingSafeEqual` 安全存储和校验凭据。
 - **角色权限隔离**：
-  - **普通用户 (`user`)**：独立管理个人单词本、背词记录与设置，支持修改密码、更新用户名与自愿注销账户。
-  - **系统管理员 (`admin`)**：专属管理后台，支持查看用户列表、防抖搜索、手动开户、重置用户密码（重置后即刻踢下线）、删除违规账户及查看审计日志。
+  - **普通用户 (`user`)**：独立管理个人单词本、背词记录与设置，支持修改密码、更新用户名与邮箱（无需邮件验证）及自愿注销账户。
+  - **系统管理员 (`admin`)**：专属管理后台，支持查看用户列表、分页与防抖搜索、手动开户、重置用户密码（重置后即刻踢下线）、删除违规账户及查看审计日志。
 - **会话与安全性保障**：
   - 30 天持久化 Session Token，服务端单向 SHA-256 哈希校验；
   - 登录与注册接口集成滑动窗口速率限制（Rate Limiting），有效防范暴力破解；
@@ -81,6 +81,212 @@ flowchart TD
 
 ---
 
+## 快速上手与部署教程
+
+> **运行环境要求**：由于服务端直接使用 Node.js 内置原生 SQLite (`node:sqlite`) 与原生 TypeScript 类型剥离 (`--experimental-strip-types`)，请确保 **Node.js 版本 $\ge$ 22.6.0**（推荐 Node.js 22 LTS 或 24+）。
+
+### 1. 安装依赖
+```bash
+git clone https://github.com/Sunny090623/vocab-memorier.git
+cd vocab-memorier
+npm install
+```
+
+### 2. 初始化管理员账户
+在首次部署或需要重置管理员密码时，可通过以下任一方式初始化管理员账户：
+
+**方式一：命令行参数一键创建 / 重置（推荐）**
+```bash
+npm run init:admin -- --email=admin@vocab.local --password=your_secure_password --username=系统管理员
+
+# 或直接使用 node 执行：
+node --experimental-strip-types server/scripts/initAdmin.ts --email=admin@vocab.local --password=your_secure_password --username=系统管理员
+```
+
+**方式二：交互式终端向导创建**
+```bash
+npm run init:admin
+# 根据终端提示依次输入管理员邮箱、密码（至少 6 位）与昵称即可
+```
+
+**方式三：首次启动时通过环境变量自动引导**
+当数据库中尚无任何管理员账户时，启动服务前传入 `ADMIN_EMAIL` 和 `ADMIN_PASSWORD` 环境变量即可自动创建首个管理员：
+```bash
+ADMIN_EMAIL=admin@vocab.local ADMIN_PASSWORD=your_secure_password npm run serve
+```
+
+---
+
+### 3. 本地开发与本地生产运行
+
+#### (1) 本地开发模式（热更新 + API 中间件）
+```bash
+npm run dev
+```
+Vite 开发服务器将在 `http://localhost:3000` 启动，并自动挂载 `/api/*` 认证与云同步后端接口。
+
+#### (2) 本地生产构建与全栈运行
+> ⚠️ **注意**：请勿使用 `python -m http.server` 等纯静态文件服务器直接运行 `dist/`，因为纯静态服务器不支持 `POST /api/auth/login` 等动态接口（会返回 `HTTP 501` 或 `HTTP 405`）。请使用内置全栈服务命令：
+
+```bash
+# 1. 编译前端生产静态资源到 dist/
+npm run build
+
+# 2. 启动全栈生产服务器（同时托管 dist/ 静态页面与 /api/* 后端接口）
+npm run serve
+```
+启动后访问 `http://localhost:3001`（或通过 `PORT=8080 npm run serve` 指定端口）即可使用完整功能。
+
+### 4. 运行自动化测试
+```bash
+# 运行全部 Vitest 单元测试与算法集成测试
+npm test
+
+# 运行账户系统、管理员后台与云同步全链路端到端 (E2E) 测试
+node --experimental-strip-types tests/e2e/test_account_admin_and_sync.mjs
+```
+
+
+### 5. 远程服务器生产部署教程（Nginx + Node.js 后端）
+
+在远程 Linux 服务器部署时，前端编译产物由 Nginx 高效托管或反代，`/api/` 动态请求转发给 Node.js 后端服务。
+
+#### 第一步：在服务器上拉取代码并构建
+```bash
+cd /opt
+git clone https://github.com/Sunny090623/vocab-memorier.git
+cd vocab-memorier
+npm install
+npm run build
+
+# 初始化管理员账号（请替换为您自己的密码）
+npm run init:admin -- --email=admin@vocab.local --password=YourStrongPassword123 --username=系统管理员
+```
+
+#### 第二步：后台常驻运行 Node.js 后端服务（监听 `127.0.0.1:3001`）
+
+你可以选择 **Systemd**（系统自带，推荐）或 **PM2** 来守护后端进程：
+
+**选项 A：使用 Systemd 守护进程**
+创建 `/etc/systemd/system/vocab-memorier.service`：
+```ini
+[Unit]
+Description=Vocab Memorier Full-Stack Server
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/vocab-memorier
+Environment=NODE_ENV=production
+Environment=PORT=3001
+Environment=DATABASE_PATH=/opt/vocab-memorier/data/vocab_server.db
+ExecStart=/usr/bin/env node --experimental-strip-types server/index.ts
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+启动并设置开机自启：
+```bash
+# 确保数据目录权限正确
+mkdir -p /opt/vocab-memorier/data
+chown -R www-data:www-data /opt/vocab-memorier/data
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now vocab-memorier
+sudo systemctl status vocab-memorier
+```
+
+**选项 B：使用 PM2 守护进程**
+```bash
+PORT=3001 pm2 start "node --experimental-strip-types server/index.ts" --name vocab-memorier
+pm2 save
+```
+
+#### 第三步：配置 Nginx（两种方式任选其一）
+
+##### 方式一：Nginx 直接托管 `/var/www/vocab-memorier` 静态文件 + 反代 `/api/`（最常用）
+如果你习惯将 `dist/*` 复制到 `/var/www/vocab-memorier`：
+```bash
+sudo mkdir -p /var/www/vocab-memorier
+sudo cp -r /opt/vocab-memorier/dist/* /var/www/vocab-memorier/
+```
+然后在 Nginx 站点配置（如 `/etc/nginx/sites-available/vocab.conf`）中**务必加上 `location /api/` 反向代理块**（否则静态 Nginx 收到登录 `POST` 请求会报 `405 Not Allowed`）：
+
+```nginx
+server {
+    listen 80;
+    server_name vocab.sunny081209.cc;
+
+    root /var/www/vocab-memorier;
+    index index.html;
+
+    # 1. 核心：将所有 /api/ 请求反向代理至 Node.js 认证与同步后端
+    location /api/ {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 20m;
+    }
+
+    # 2. 静态词典分片读取支持
+    location /dicts/ {
+        try_files $uri =404;
+        add_header Accept-Ranges bytes;
+    }
+
+    # 3. 前端 React 路由 SPA 回退
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
+##### 方式二：Nginx 全站直接反向代理至 `127.0.0.1:3001`（无需手动复制 `dist/`）
+因为 `npm run serve` 已内置 `dist/` 静态资源服务与 HTTP Range 支持，你也可以直接将全站反代给 `3001` 端口：
+```nginx
+server {
+    listen 80;
+    server_name vocab.sunny081209.cc;
+
+    client_max_body_size 20m;
+
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+配置完成后重载 Nginx 即可生效：
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+---
+
+## 环境变量说明
+
+| 变量名 | 默认值 | 说明 |
+|:---|:---|:---|
+| `PORT` | `3001` | `npm run serve` 全栈服务端监听端口 |
+| `DATABASE_PATH` | `./data/vocab_server.db` | 服务端 SQLite 数据库物理存储路径 |
+| `ALLOW_PUBLIC_REGISTRATION` | `true` | 首次建库时是否开放公开注册（后续可在管理员后台动态切换） |
+| `ADMIN_EMAIL` | 无 | 当数据库尚无管理员时，配合 `ADMIN_PASSWORD` 自动引导创建首个管理员邮箱 |
+| `ADMIN_PASSWORD` | 无 | 当数据库尚无管理员时，自动引导创建的首个管理员密码（至少 6 位） |
+| `ADMIN_USERNAME` | `系统管理员` | 自动引导创建的首个管理员昵称 |
+
+---
+
 ## 项目结构与技术栈
 
 ```
@@ -127,58 +333,6 @@ vocab-memorier/
 - **服务端技术栈**：Node.js 原生 HTTP (`node:http`)、原生 SQLite (`node:sqlite` WAL 模式)
 - **UI 设计规范**：Material Design 3 Token 与组件体系，支持深色/浅色/跟随系统模式
 - **测试框架**：Vitest 3.2、Playwright (Chromium)
-
----
-
-## 快速上手与运行
-
-### 1. 安装依赖
-```bash
-git clone https://github.com/Sunny090623/vocab-memorier.git
-cd vocab-memorier
-npm install
-```
-
-### 2. 初始化管理员账户
-在首次部署或启用多用户管理前，可通过内置脚本初始化首个管理员账户：
-```bash
-# 采用默认提示交互创建，或通过命令行参数非交互创建：
-npx tsx server/scripts/initAdmin.ts --email=admin@vocab.local --password=your_secure_password --username=系统管理员
-```
-
-### 3. 启动开发服务器（前端 + 服务端 API 中间件）
-```bash
-npm run dev
-```
-开发模式下，Vite 会自动集成后端 API 路由并在 `http://localhost:5173` 启动服务。
-
-### 4. 生产构建与本地运行
-```bash
-# 编译前端生产静态资源
-npm run build
-
-# 预览服务
-npm run preview
-```
-
-### 5. 运行自动化测试
-```bash
-# 运行全部 Vitest 单元测试与算法集成测试
-npx vitest run
-
-# 运行账户系统、管理员后台与云同步全链路端到端 (E2E) 测试
-node tests/e2e/test_account_admin_and_sync.mjs
-```
-
----
-
-## 环境变量说明
-
-| 变量名 | 默认值 | 说明 |
-|:---|:---|:---|
-| `DATABASE_PATH` | `./data/vocab_server.db` | 服务端 SQLite 数据库物理存储路径 |
-| `ALLOW_PUBLIC_REGISTRATION` | `true` | 是否开放自由公开注册（可在后台动态切换） |
-| `PORT` | `3000` | 生产服务端监听端口 |
 
 ---
 

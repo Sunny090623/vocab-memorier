@@ -214,18 +214,34 @@ export async function handleProfile(req: CustomRequest, res: ServerResponse): Pr
     return;
   }
 
-  const body = await parseBody<{ username?: string }>(req);
-  const username = (body.username || '').trim();
-  if (!username) {
+  const body = await parseBody<{ username?: string; email?: string }>(req);
+  const nextUsername = body.username !== undefined ? body.username.trim() : req.user.username;
+  const nextEmail = body.email !== undefined ? body.email.trim().toLowerCase() : req.user.email;
+
+  if (!nextUsername) {
     error(res, '用户名不能为空');
+    return;
+  }
+  if (!nextEmail || !nextEmail.includes('@')) {
+    error(res, '请输入有效的邮箱地址');
     return;
   }
 
   const db = getDb();
-  const now = Date.now();
-  db.prepare('UPDATE users SET username = ?, updated_at = ? WHERE id = ?').run(username, now, req.user.id);
+  if (nextEmail !== req.user.email) {
+    const existing = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(nextEmail, req.user.id);
+    if (existing) {
+      error(res, '该邮箱已被其他账户使用', 409);
+      return;
+    }
+  }
 
-  req.user.username = username;
+  const now = Date.now();
+  db.prepare('UPDATE users SET username = ?, email = ?, updated_at = ? WHERE id = ?')
+    .run(nextUsername, nextEmail, now, req.user.id);
+
+  req.user.username = nextUsername;
+  req.user.email = nextEmail;
   json(res, { user: req.user });
 }
 

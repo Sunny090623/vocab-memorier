@@ -39,10 +39,10 @@ export const authApi = {
     return request('/api/auth/me', { method: 'GET' });
   },
 
-  async updateProfile(username: string): Promise<{ user: AuthUser }> {
+  async updateProfile(username: string, email?: string): Promise<{ user: AuthUser }> {
     return request('/api/auth/profile', {
       method: 'PUT',
-      body: JSON.stringify({ username }),
+      body: JSON.stringify(email !== undefined ? { username, email } : { username }),
     });
   },
 

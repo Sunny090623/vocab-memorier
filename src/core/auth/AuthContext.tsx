@@ -33,7 +33,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshConfig = useCallback(async () => {
     try {
       const res = await authApi.getAuthConfig();
-      setAllowPublicRegistration(res.allowPublicRegistration);
+      if (res && typeof res.allowPublicRegistration === 'boolean') {
+        setAllowPublicRegistration(res.allowPublicRegistration);
+      }
     } catch {
       // 忽略配置拉取异常，默认保持开放
     }

@@ -69,7 +69,7 @@ class SyncService {
       userDb.logs.toArray(),
     ]);
 
-    const themeSetting = localStorage.getItem('theme_mode');
+    const themeSetting = localStorage.getItem('vocab_theme') || localStorage.getItem('theme_mode');
     const settings: Array<{ key: string; value: string; updatedAt: number }> = [];
     if (themeSetting) {
       settings.push({ key: 'theme_mode', value: themeSetting, updatedAt: Date.now() });
@@ -334,8 +334,9 @@ class SyncService {
     // 5. 应用 settings
     if (remote.settings) {
       for (const s of remote.settings) {
-        if (s.key === 'theme_mode') {
+        if (s.key === 'theme_mode' || s.key === 'vocab_theme') {
           localStorage.setItem('theme_mode', s.value);
+          localStorage.setItem('vocab_theme', s.value);
         }
       }
     }

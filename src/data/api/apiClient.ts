@@ -61,9 +61,23 @@ export async function request<T = unknown>(
     data = await response.text().catch(() => null);
   }
 
+  if (response.status === 405 || response.status === 501) {
+    throw new ApiError(
+      `当前静态服务器不支持 API 请求 (HTTP ${response.status})。请使用 npm run serve 或 npm run preview 启动包含 Node 认证后端的服务，或在 Nginx 中将 /api/ 反向代理至后端服务端口。`,
+      response.status
+    );
+  }
+
   if (!response.ok) {
     const errorMsg = data && typeof data === 'object' && data.error ? data.error : `Request failed with status ${response.status}`;
     throw new ApiError(errorMsg, response.status);
+  }
+
+  if (path.startsWith('/api/') && !contentType.includes('application/json')) {
+    throw new ApiError(
+      '后端 API 接口返回了非 JSON 内容（静态服务器回退了 HTML）。请确保 Node 后端服务已启动并已配置 /api/ 反向代理。',
+      502
+    );
   }
 
   return data as T;

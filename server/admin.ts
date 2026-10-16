@@ -58,8 +58,26 @@ export async function handleAdminPutConfig(req: CustomRequest, res: ServerRespon
 export async function handleAdminListUsers(req: CustomRequest, res: ServerResponse, url: URL): Promise<void> {
   if (!requireAdmin(req, res)) return;
   const q = (url.searchParams.get('q') || '').trim().toLowerCase();
+  const pageParam = Number(url.searchParams.get('page'));
+  const pageSizeParam = Number(url.searchParams.get('pageSize'));
+  const hasPagination = url.searchParams.has('page') || url.searchParams.has('pageSize');
+  const page = Number.isFinite(pageParam) && pageParam >= 1 ? Math.floor(pageParam) : 1;
+  const pageSize = Number.isFinite(pageSizeParam) && pageSizeParam >= 1 ? Math.min(100, Math.floor(pageSizeParam)) : 20;
 
   const db = getDb();
+  let whereClause = '';
+  const whereParams: (string | number)[] = [];
+
+  if (q) {
+    whereClause = ` WHERE LOWER(u.email) LIKE ? OR LOWER(u.username) LIKE ? `;
+    whereParams.push(`%${q}%`, `%${q}%`);
+  }
+
+  const countRow = db.prepare(`SELECT COUNT(*) as total FROM users u ${whereClause}`).get(...whereParams) as {
+    total: number;
+  };
+  const total = countRow.total;
+
   let query = `
     SELECT 
       u.id, 
@@ -72,17 +90,18 @@ export async function handleAdminListUsers(req: CustomRequest, res: ServerRespon
       (SELECT COUNT(*) FROM cloud_decks d WHERE d.user_id = u.id AND d.is_deleted = 0) as deck_count,
       (SELECT COUNT(*) FROM cloud_cards c WHERE c.user_id = u.id) as card_count
     FROM users u
+    ${whereClause}
+    ORDER BY u.created_at DESC
   `;
-  const params: string[] = [];
 
-  if (q) {
-    query += ` WHERE LOWER(u.email) LIKE ? OR LOWER(u.username) LIKE ? `;
-    params.push(`%${q}%`, `%${q}%`);
+  const queryParams: (string | number)[] = [...whereParams];
+  if (hasPagination) {
+    const offset = (page - 1) * pageSize;
+    query += ` LIMIT ? OFFSET ?`;
+    queryParams.push(pageSize, offset);
   }
 
-  query += ` ORDER BY u.created_at DESC;`;
-
-  const rows = db.prepare(query).all(...params) as Array<{
+  const rows = db.prepare(query).all(...queryParams) as Array<{
     id: string;
     email: string;
     username: string;
@@ -107,7 +126,13 @@ export async function handleAdminListUsers(req: CustomRequest, res: ServerRespon
     cardCount: r.card_count,
   }));
 
-  json(res, { users });
+  json(res, {
+    users,
+    total,
+    page,
+    pageSize: hasPagination ? pageSize : Math.max(total, 1),
+    totalPages: hasPagination ? Math.max(1, Math.ceil(total / pageSize)) : 1,
+  });
 }
 
 export async function handleAdminCreateUser(req: CustomRequest, res: ServerResponse): Promise<void> {
@@ -260,7 +285,8 @@ export async function handleAdminDeleteUser(
     }
   }
 
-  // 事务中原子级联删除个人数据，绝对不触碰其他用户或共享词典
+  // 事务中原子级联删除个人数据，保留历史审计日志记录，绝对不触碰其他用户或共享词典
+  db.exec('PRAGMA foreign_keys = OFF;');
   db.exec('BEGIN TRANSACTION;');
   try {
     db.prepare('DELETE FROM cloud_logs WHERE user_id = ?').run(targetUserId);
@@ -290,6 +316,8 @@ export async function handleAdminDeleteUser(
   } catch (err) {
     db.exec('ROLLBACK;');
     throw err;
+  } finally {
+    db.exec('PRAGMA foreign_keys = ON;');
   }
 
   json(res, { success: true, message: '用户及相关云端数据已彻底删除' });
