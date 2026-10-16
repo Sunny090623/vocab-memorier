@@ -140,17 +140,6 @@ npm run serve
 
 ---
 
-### 4. 运行自动化测试
-```bash
-# 运行全部 Vitest 单元测试与算法集成测试
-npm test
-
-# 运行账户系统、管理员后台与云同步全链路端到端 (E2E) 测试
-node --experimental-strip-types tests/e2e/test_account_admin_and_sync.mjs
-```
-
----
-
 ### 5. 远程服务器生产部署教程（Nginx + Node.js 后端）
 
 在远程 Linux 服务器部署时，前端编译产物由 Nginx 高效托管或反代，`/api/` 动态请求转发给 Node.js 后端服务。
